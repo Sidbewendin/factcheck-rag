@@ -2,33 +2,40 @@
 retriever.py
 ------------
 Retrieval module for FactCheck-RAG.
-Loads the ChromaDB vector store and retrieves
+Loads the Qdrant Cloud vector store and retrieves
 the most relevant verified chunks for a given query.
 """
 
 # IMPORTS
 
-from langchain_community.vectorstores import Chroma
+import os
+from dotenv import load_dotenv
+from qdrant_client import QdrantClient
+from langchain_qdrant import QdrantVectorStore
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_core.documents import Document
+
+load_dotenv()
 
 
 # CONFIGURATION
 
-CHROMA_DIR = "chroma_db"
 EMBEDDING_MODEL = "BAAI/bge-small-en-v1.5"
+COLLECTION_NAME = "factcheck_covid"
+
+
 
 # LOAD VECTOR STORE
 
-def load_vectorstore() -> Chroma:
+def load_vectorstore() -> QdrantVectorStore:
     """
-    Load the persisted ChromaDB vector store from disk.
-    The vector store must have been created by ingest.py first.
+    Connect to Qdrant Cloud and load the vector store.
+    Credentials are loaded from environment variables.
 
     Returns:
-        Chroma vector store instance
+        QdrantVectorStore instance
     """
-    print(f"[INFO] Loading vector store from '{CHROMA_DIR}/'...")
+    print("[INFO] Connecting to Qdrant Cloud...")
 
     # Load embedding model — must match the one used during ingestion
     embeddings = HuggingFaceEmbeddings(
@@ -37,39 +44,47 @@ def load_vectorstore() -> Chroma:
         encode_kwargs={'normalize_embeddings': True}
     )
 
-    # Load existing ChromaDB from disk
-    vectorstore = Chroma(
-        persist_directory=CHROMA_DIR,
-        embedding_function=embeddings
+    # Connect to Qdrant Cloud
+    client = QdrantClient(
+        url=os.getenv("QDRANT_URL"),
+        api_key=os.getenv("QDRANT_API_KEY")
     )
 
-    print(f"[INFO] Vector store loaded — {vectorstore._collection.count()} vectors available")
+    # Load existing collection
+    vectorstore = QdrantVectorStore(
+        client=client,
+        collection_name=COLLECTION_NAME,
+        embedding=embeddings
+    )
+
+    print(f"[INFO] Connected to collection '{COLLECTION_NAME}'")
     return vectorstore
+
 
 # RETRIEVE RELEVANT CHUNKS
 
-def retrieve(query: str, vectorstore: Chroma, k: int = 5) -> list[Document]:
+def retrieve(query: str, vectorstore: QdrantVectorStore, k: int = 5) -> list[Document]:
     """
     Retrieve the k most semantically similar chunks
-    to the given query from the vector store.
+    to the given query from the Qdrant vector store.
 
     Args:
         query       : the claim or question to fact-check
-        vectorstore : ChromaDB vector store instance
+        vectorstore : QdrantVectorStore instance
         k           : number of chunks to retrieve (default: 5)
     Returns:
         List of the k most relevant Document objects
     """
     print(f"[INFO] Retrieving top {k} chunks for query: '{query}'")
 
-    # Compute query embedding and find nearest neighbors in ChromaDB
+    # Compute query embedding and find nearest neighbors in Qdrant
     docs = vectorstore.similarity_search(query, k=k)
 
     print(f"[INFO] {len(docs)} relevant chunks retrieved")
     return docs
 
 
-# TEST RETRIEVAL
+# MAIN — TEST RETRIEVAL
 
 if __name__ == "__main__":
     print("\n" + "="*55)

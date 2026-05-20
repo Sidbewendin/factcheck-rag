@@ -6,19 +6,21 @@ Provides an interactive UI for fact-checking
 COVID-19 claims using the RAG pipeline.
 """
 
+# ============================================================
+# IMPORTS
+# ============================================================
 import sys
 import os
-
 sys.path.append(os.path.join(os.path.dirname(__file__), "src"))
-
-# IMPORTS
 
 import streamlit as st
 from chain import fact_check, load_llm
 from retriever import load_vectorstore
 
-# PAGE CONFIGURATION
 
+# ============================================================
+# PAGE CONFIGURATION
+# ============================================================
 st.set_page_config(
     page_title="FactCheck-RAG",
     page_icon="🔍",
@@ -26,8 +28,9 @@ st.set_page_config(
 )
 
 
-# LOAD COMPONENTS
-
+# ============================================================
+# LOAD COMPONENTS (cached to avoid reloading on every run)
+# ============================================================
 @st.cache_resource
 def load_components():
     """
@@ -40,8 +43,9 @@ def load_components():
     return vectorstore, llm
 
 
+# ============================================================
 # UI — HEADER
-
+# ============================================================
 st.title("🔍 FactCheck-RAG")
 st.subheader("COVID-19 Claim Verification powered by RAG & LLM")
 st.markdown("""
@@ -51,11 +55,11 @@ This tool verifies COVID-19 claims against a database of
 st.divider()
 
 
+# ============================================================
 # UI — INPUT
+# ============================================================
+st.markdown("### Enter a claim to fact-check")
 
-st.markdown("### 📝 Enter a claim to fact-check")
-
-# Example claims for quick testing
 examples = [
     "The COVID vaccine causes infertility",
     "COVID-19 is more deadly than the seasonal flu",
@@ -68,7 +72,6 @@ selected_example = st.selectbox(
     [""] + examples
 )
 
-# Text input — prefilled with selected example
 user_input = st.text_area(
     "Your claim:",
     value=selected_example,
@@ -77,30 +80,30 @@ user_input = st.text_area(
 )
 
 
+# ============================================================
 # UI — FACT-CHECK BUTTON
-
+# ============================================================
 if st.button("🔍 Fact-Check", type="primary", use_container_width=True):
 
     if not user_input.strip():
         st.warning("Please enter a claim to fact-check.")
     else:
         # Load components
-        with st.spinner("Loading knowledge base..."):
+        with st.spinner("Connecting to knowledge base..."):
             vectorstore, llm = load_components()
 
         # Run RAG pipeline
         with st.spinner("Analyzing claim against verified sources..."):
             result = fact_check(user_input, vectorstore, llm)
 
-
+        # --------------------------------------------------------
         # UI — DISPLAY RESULT
-       
+        # --------------------------------------------------------
         st.divider()
         st.markdown("### Fact-Check Result")
 
         # Parse verdict from result
-        verdict = ""
-        if "VERDICT: TRUE" in result:
+        if "VERDICT: TRUE" in result and "PARTIALLY" not in result:
             verdict = "TRUE"
             color = "green"
         elif "VERDICT: FALSE" in result:
@@ -124,12 +127,14 @@ if st.button("🔍 Fact-Check", type="primary", use_container_width=True):
         explanation = result.split("EXPLANATION:")[-1].strip()
         st.write(explanation)
 
-# UI — FOOTER
 
+# ============================================================
+# UI — FOOTER
+# ============================================================
 st.divider()
 st.markdown("""
 <small>
-Built with LangChain · ChromaDB · BGE Embeddings · Groq LLM · Streamlit  
-Knowledge base: COVID-19 verified articles & fact-checked tweets
+Built with LangChain · Qdrant Cloud · BGE Embeddings · Groq LLM · Streamlit  
+Knowledge base: 16,771 verified COVID-19 sources
 </small>
 """, unsafe_allow_html=True)

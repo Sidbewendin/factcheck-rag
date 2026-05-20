@@ -1,7 +1,9 @@
 """
 chain.py
 --------
-RAG chain module for FactCheck-RAG
+RAG chain module for FactCheck-RAG.
+Combines retrieval and generation to produce
+a fact-checking verdict for a given claim.
 """
 
 # IMPORTS
@@ -9,14 +11,17 @@ RAG chain module for FactCheck-RAG
 import os
 from dotenv import load_dotenv
 from langchain_groq import ChatGroq
-from langchain_community.vectorstores import Chroma
+from langchain_qdrant import QdrantVectorStore
 from retriever import load_vectorstore, retrieve
+
+load_dotenv()
+
 
 # CONFIGURATION
 
-load_dotenv()
 LLM_MODEL = "llama-3.1-8b-instant"
 DEFAULT_K = 5
+
 
 # LOAD LLM
 
@@ -39,6 +44,7 @@ def load_llm() -> ChatGroq:
 
     print("[INFO] LLM loaded successfully")
     return llm
+
 
 # BUILD PROMPT
 
@@ -75,18 +81,20 @@ EXPLANATION: [your explanation based on the sources]
 """
     return prompt
 
+
+
 # FULL RAG PIPELINE
 
-def fact_check(query: str, vectorstore: Chroma, llm: ChatGroq, k: int = DEFAULT_K) -> str:
+def fact_check(query: str, vectorstore: QdrantVectorStore, llm: ChatGroq, k: int = DEFAULT_K) -> str:
     """
     Full RAG pipeline for fact-checking a claim.
-    1. Retrieve relevant verified chunks from ChromaDB
+    1. Retrieve relevant verified chunks from Qdrant Cloud
     2. Build augmented prompt with retrieved sources
     3. Generate verdict using Groq LLM
 
     Args:
         query       : the claim to fact-check
-        vectorstore : ChromaDB vector store instance
+        vectorstore : QdrantVectorStore instance
         llm         : ChatGroq LLM instance
         k           : number of chunks to retrieve
     Returns:
