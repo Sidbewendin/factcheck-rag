@@ -4,6 +4,10 @@
 
 ---
 
+## Live demo : factcheck-rag.streamlit.app
+
+https://factcheck-rag-qhnsydq4r3frfbyq3vpbcw.streamlit.app/
+
 ## Overview
 
 FactCheck-RAG is an end-to-end fact-checking pipeline that verifies COVID-19 claims
